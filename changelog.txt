@@ -1,0 +1,54 @@
+---------------------------------------------------------------------------------------------------
+Version: 0.4.2
+Date: 2026-11-17
+  Graphics:
+    - The streak and fog trail are drawn as one straight line at shoulder height, without the dip toward the ground near the gun. Hits are still worked out along the ground.
+---------------------------------------------------------------------------------------------------
+Version: 0.4.1
+Date: 2026-11-17
+  Locale:
+    - Every setting's tooltip now lists its allowed range and default.
+---------------------------------------------------------------------------------------------------
+Version: 0.4.0
+Date: 2026-11-17
+  Features:
+    - New map setting "Damage multiplier" (1x to 10x, default 5x).
+    - New map setting "Slug width" (0.5 to 50 tiles, default 2.5). The targeting picks lines using the current width.
+  Balancing:
+    - Base damage is now 200, so the default 5x multiplier still deals 1000 per shot.
+    - Default slug width raised from 1.5 to 2.5 tiles.
+  Graphics:
+    - The streak now runs along the exact line the damage follows, rising to the gun only within the first few tiles.
+    - Wider slugs draw a wider glow and a wider fog trail.
+  Locale:
+    - The one-per-grid message now reads "Structural integrity reached. Configure in map settings."
+---------------------------------------------------------------------------------------------------
+Version: 0.3.0
+Date: 2026-11-17
+  Features:
+    - One railgun per equipment grid: a second one placed in the same grid is handed back.
+    - New map setting "Allow more than one railgun per grid" (off by default) lifts the limit.
+  Balancing:
+    - Default damage raised from 500 to 1000 per shot.
+  Graphics:
+    - The streak is half as wide and fades in at the muzzle and out toward full range instead of ending in hard edges.
+---------------------------------------------------------------------------------------------------
+Version: 0.2.0
+Date: 2026-11-17
+  Major Features:
+    - Renamed the mod to WePlayRailgunEquipment.
+    - New targeting: each shot looks at every enemy in range and fires along the heading that passes through the most of them.
+  Changes:
+    - Firing is now fully scripted, so the streak and fog trail show on every shot.
+    - Only one railgun per wearer fires at a time, so several railguns in one suit stagger their shots.
+  Sounds:
+    - New railgun shot sound.
+---------------------------------------------------------------------------------------------------
+Version: 0.1.0
+Date: 2026-11-17
+  Major Features:
+    - Initial test build: 4x4 personal railgun equipment that fires automatically at enemies in range.
+    - Each shot pierces every enemy in a straight line out to full range, with no damage falloff.
+    - Shots leave a bright streak that fades into a drifting fog trail.
+    - High power cost per shot plus a constant idle drain while it's in a grid.
+    - Startup settings for damage, range, fire interval, shot energy and idle drain.

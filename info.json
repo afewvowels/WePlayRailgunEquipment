@@ -1,0 +1,10 @@
+{
+  "name": "WePlayRailgunEquipment",
+  "version": "0.4.2",
+  "title": "WePlay: Personal Railgun Equipment",
+  "author": "afewvowels",
+  "homepage": "https://github.com/afewvowels/WePlayRailgunEquipment",
+  "description": "A 4x4 armor railgun that fires an instant, armor-piercing slug through every enemy in a straight line, at a brutal cost in power.",
+  "factorio_version": "2.1",
+  "dependencies": ["base >= 2.1", "? space-age"]
+}
