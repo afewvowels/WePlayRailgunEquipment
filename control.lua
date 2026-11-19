@@ -1,4 +1,6 @@
 local NAME = "wp-personal-railgun-equipment"
+local NOAMMO = NAME .. "-no-ammo" -- same railgun, swapped in while the wearer is out of ammo
+local SLUG = "wp-railgun-slug"
 local FOG = "wp-railgun-fog"
 local SOUND = "wp-railgun-shot"
 
@@ -10,6 +12,7 @@ local SHOT_J    = S["wp-railgun-shot-energy"].value * 1000000
 local DRAIN_J_S = S["wp-railgun-idle-drain"].value * 1000
 
 local SCAN_EVERY    = 10   -- ticks between targeting checks; at most one railgun fires per wearer per check
+local AMMO_EVERY    = 60   -- ticks between checks that update the no-ammo icon
 local DRAIN_EVERY   = 30
 local DRAIN_STEP    = DRAIN_J_S * DRAIN_EVERY / 60
 local DEFAULT_WIDTH = 2.5  -- default slug width in tiles (matches the map setting's default)
@@ -38,6 +41,107 @@ local TARGET_TYPES = {
 ---------------------------------------------------------------------------------------------------
 -- Bookkeeping
 
+---------------------------------------------------------------------------------------------------
+-- Ammo
+
+-- Accepted ammo, best first: Space Age's, Space Exploration's or Krastorio 2's railgun ammo,
+-- otherwise our slug. Krastorio 2's antimatter shells are left alone so they aren't burned by accident.
+local AMMO_CANDIDATES = {"railgun-ammo", "se-railgun-ammo", "kr-basic-railgun-shell", "kr-explosive-railgun-shell", SLUG}
+
+-- Which research bonus each ammo gets.
+local AMMO_BONUS = {
+  ["railgun-ammo"] = "railgun",                     -- Space Age: Railgun damage
+  ["se-railgun-ammo"] = "railgun",                  -- Space Exploration's railgun bonus
+  ["kr-basic-railgun-shell"] = "kr-railgun-shell",  -- Krastorio 2: physical projectile damage
+  ["kr-explosive-railgun-shell"] = "kr-railgun-shell",
+  [SLUG] = "cannon-shell",                          -- physical projectile damage
+}
+local ammo_list
+local function ammo_names()
+  if not ammo_list then
+    ammo_list = {}
+    for _, n in ipairs(AMMO_CANDIDATES) do
+      if prototypes.item[n] then ammo_list[#ammo_list + 1] = n end
+    end
+  end
+  return ammo_list
+end
+
+-- Ammo comes from the character's main inventory, or a vehicle's trunk.
+local function ammo_inventory(owner)
+  local t = owner.type
+  if t == "character" then return owner.get_inventory(defines.inventory.character_main) end
+  if t == "car" then return owner.get_inventory(defines.inventory.car_trunk) end
+  if t == "spider-vehicle" then return owner.get_inventory(defines.inventory.spider_trunk) end
+end
+
+-- The ammo to use next: the first accepted ammo type, lowest quality first.
+local function find_ammo(inv)
+  if not (inv and inv.valid) then return nil end
+  local contents = inv.get_contents()
+  for _, name in ipairs(ammo_names()) do
+    local pick, pick_level
+    for _, it in pairs(contents) do
+      if it.name == name and it.count > 0 then
+        local q = it.quality or "normal"
+        local level = prototypes.quality[q] and prototypes.quality[q].level or 0
+        if not pick or level < pick_level then pick, pick_level = q, level end
+      end
+    end
+    if pick then return {name = name, quality = pick} end
+  end
+end
+
+-- Use up one shot. Ammo with a magazine (Space Exploration's holds 4) spends its rounds one at a
+-- time before the item is used up; our slug and Space Age's ammo are one shot each.
+local function take_round(inv, ammo)
+  for i = 1, #inv do
+    local stack = inv[i]
+    if stack.valid_for_read and stack.name == ammo.name and stack.quality.name == ammo.quality then
+      if stack.type == "ammo" and stack.ammo > 1 then
+        stack.ammo = stack.ammo - 1
+      else
+        stack.count = stack.count - 1
+      end
+      return true
+    end
+  end
+  return false
+end
+
+local function count_railguns(grid)
+  return grid.count(NAME) + grid.count(NOAMMO)
+end
+
+-- Swap a railgun between its normal and no-ammo look, keeping its place, quality and charge.
+local function swap(grid, eq, to_name)
+  local pos, quality, energy = eq.position, eq.quality.name, eq.energy
+  grid.take({equipment = eq})
+  local new = grid.put({name = to_name, position = pos, quality = quality})
+  if new then new.energy = math.min(energy, new.max_energy) end
+  return new
+end
+
+local function set_ammo_look(grid, has_ammo)
+  local from, to = NAME, NOAMMO
+  if has_ammo then from, to = NOAMMO, NAME end
+  if grid.count(from) == 0 then return end
+  local list = {}
+  for _, eq in pairs(grid.equipment) do
+    if eq.name == from then list[#list + 1] = eq end
+  end
+  for _, eq in ipairs(list) do swap(grid, eq, to) end
+end
+
+local function refresh_ammo_look(owner, grid)
+  if not (owner and owner.valid and grid and grid.valid) then return end
+  if count_railguns(grid) == 0 then return end
+  set_ammo_look(grid, find_ammo(ammo_inventory(owner)) ~= nil)
+end
+
+---------------------------------------------------------------------------------------------------
+-- Bookkeeping
+
 local function init()
   storage.grids = storage.grids or {}     -- grid unique_id -> grid, for the idle drain
   storage.cool = storage.cool or {}       -- "grid_id:x,y" -> tick the railgun is ready again
@@ -60,15 +164,34 @@ local function scan_all()
   end
 end
 
+-- Recipes added in later versions (the slug) or moved to another research (Space Age's Railgun)
+-- get unlocked for forces that already have the research.
+local function sync_recipes()
+  local unlockers = {"railgun", "se-railgun", "kr-railgun-turret", NAME}
+  for _, force in pairs(game.forces) do
+    for _, tech_name in ipairs(unlockers) do
+      local tech = force.technologies[tech_name]
+      if tech and tech.researched then
+        for _, effect in pairs(tech.prototype.effects) do
+          if effect.type == "unlock-recipe" and force.recipes[effect.recipe] then
+            force.recipes[effect.recipe].enabled = true
+          end
+        end
+      end
+    end
+  end
+end
+
 script.on_init(function() init() scan_all() end)
-script.on_configuration_changed(function() init() scan_all() end)
+script.on_configuration_changed(function() init() scan_all() sync_recipes() end)
 
 local function allow_multiple()
   return settings.global["wp-railgun-allow-multiple"].value
 end
 
 local function on_inserted(e)
-  if e.equipment and e.equipment.valid and e.equipment.name == NAME then track_grid(e.grid) end
+  local eq = e.equipment
+  if eq and eq.valid and (eq.name == NAME or eq.name == NOAMMO) then track_grid(e.grid) end
 end
 if defines.events.on_equipment_inserted then
   script.on_event(defines.events.on_equipment_inserted, on_inserted)
@@ -98,14 +221,24 @@ script.on_event(defines.events.on_player_placed_equipment, function(e)
   local eq, grid = e.equipment, e.grid
   if not (eq and eq.valid and eq.name == NAME) then return end
   track_grid(grid)
-  if allow_multiple() or grid.count(NAME) <= 1 then return end
-
   local player = game.get_player(e.player_index)
-  local quality = eq.quality.name
-  grid.take({equipment = eq})
+  if not allow_multiple() and count_railguns(grid) > 1 then
+    local quality = eq.quality.name
+    grid.take({equipment = eq})
+    if player then
+      hand_back(player, quality)
+      player.create_local_flying_text({text = {"wp-railgun.one-per-grid"}, create_at_cursor = true})
+    end
+    return
+  end
+
+  -- Show the no-ammo look straight away if the wearer has none.
   if player then
-    hand_back(player, quality)
-    player.create_local_flying_text({text = {"wp-railgun.one-per-grid"}, create_at_cursor = true})
+    if player.character and player.character.valid and player.character.grid == grid then
+      refresh_ammo_look(player.character, grid)
+    elseif player.vehicle and player.vehicle.valid and player.vehicle.grid == grid then
+      refresh_ammo_look(player.vehicle, grid)
+    end
   end
 end)
 
@@ -113,7 +246,7 @@ script.on_event(defines.events.on_player_armor_inventory_changed, function(e)
   local player = game.get_player(e.player_index)
   if player and player.character and player.character.valid then
     local grid = player.character.grid
-    if grid and grid.count(NAME) > 0 then track_grid(grid) end
+    if grid and count_railguns(grid) > 0 then track_grid(grid) end
   end
 end)
 
@@ -123,11 +256,11 @@ end)
 script.on_nth_tick(DRAIN_EVERY, function()
   if DRAIN_STEP <= 0 then return end
   for id, grid in pairs(storage.grids) do
-    if not grid.valid or grid.count(NAME) == 0 then
+    if not grid.valid or count_railguns(grid) == 0 then
       storage.grids[id] = nil
     else
       for _, eq in pairs(grid.equipment) do
-        if eq.name == NAME then eq.energy = math.max(0, eq.energy - DRAIN_STEP) end
+        if eq.name == NAME or eq.name == NOAMMO then eq.energy = math.max(0, eq.energy - DRAIN_STEP) end
       end
     end
   end
@@ -161,8 +294,14 @@ local function half_width()
   return settings.global["wp-railgun-width"].value / 2
 end
 
-local function damage_per_hit()
-  return DAMAGE * settings.global["wp-railgun-damage-multiplier"].value
+-- Research bonus for the ammo that was fired (see AMMO_BONUS).
+local function damage_per_hit(force, ammo_name)
+  local category = AMMO_BONUS[ammo_name]
+  local bonus = 0
+  if category and prototypes.ammo_category[category] then
+    bonus = force.get_ammo_damage_modifier(category)
+  end
+  return DAMAGE * settings.global["wp-railgun-damage-multiplier"].value * (1 + bonus)
 end
 
 -- Returns the enemies that a slug could reach as flat arrays, nearest first.
@@ -337,16 +476,36 @@ local function try_fire(owner, grid, tick, forces_cache)
   local ux, uy, hits = best_heading(enemies, half)
   if not hits then return end
 
+  -- Every shot takes one round of ammo as well as power.
+  local inv = ammo_inventory(owner)
+  local ammo = find_ammo(inv)
+  if not ammo then
+    set_ammo_look(grid, false)
+    return
+  end
+  if not take_round(inv, ammo) then return end
+  if not find_ammo(inv) then set_ammo_look(grid, false) end
+
   local gun = ready[1]
   gun.eq.energy = gun.eq.energy - SHOT_J
   storage.cool[gun.key] = tick + COOLDOWN
 
-  local dmg = damage_per_hit()
+  local dmg = damage_per_hit(force, ammo.name)
   for _, e in ipairs(hits) do
     if e.valid then e.damage(dmg, force, "physical", owner, owner) end
   end
   draw_shot(owner.surface, owner.position, ux, uy, half)
 end
+
+-- Keep the no-ammo look in step with each wearer's inventory.
+script.on_nth_tick(AMMO_EVERY, function()
+  for _, player in pairs(game.connected_players) do
+    local vehicle = player.vehicle
+    if vehicle and vehicle.valid and vehicle.grid then refresh_ammo_look(vehicle, vehicle.grid) end
+    local char = player.character
+    if char and char.valid and char.grid then refresh_ammo_look(char, char.grid) end
+  end
+end)
 
 script.on_nth_tick(SCAN_EVERY, function(event)
   local tick = event.tick

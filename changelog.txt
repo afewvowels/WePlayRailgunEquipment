@@ -1,4 +1,32 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.6.1
+Date: 2026-11-19
+  Compatibility:
+    - With Krastorio 2, the personal railgun fires Krastorio 2's basic and explosive railgun shells (antimatter shells are left alone), is unlocked by its Railgun turret research and gets its physical projectile damage bonus for railgun shells.
+    - Damage research now follows the ammo actually fired.
+---------------------------------------------------------------------------------------------------
+Version: 0.6.0
+Date: 2026-11-17
+  Features:
+    - Damage now gets research bonuses: Railgun damage with Space Age, Space Exploration's railgun bonus with Space Exploration, and physical projectile damage otherwise.
+  Compatibility:
+    - With Space Exploration, the personal railgun fires Space Exploration's railgun ammo (all 4 rounds of each magazine) and is unlocked by its Railgun research. The railgun slug isn't added.
+  Graphics:
+    - The railgun slug icon now stands upright, like the cannon shell icons.
+    - The no-ammo look now matches the Personal Rocket Launcher Equipment: dimmed, with the game's red no-ammo icon.
+  Balancing:
+    - Railgun slug recipe is now 4 explosives, 4 plastic bars and 4 low density structures.
+---------------------------------------------------------------------------------------------------
+Version: 0.5.0
+Date: 2026-11-17
+  Major Features:
+    - Every shot now needs one round of ammo as well as power, taken from the wearer's inventory (or a vehicle's trunk).
+    - New item: Railgun slug, unlocked with the personal railgun (about double the cost of a cannon shell).
+  Features:
+    - Railguns dim and show a red slug in the equipment grid when the wearer is out of ammo.
+  Compatibility:
+    - With Space Age, the personal railgun fires Space Age's railgun ammo and is unlocked by the Railgun research instead of its own technology. The railgun slug isn't added.
+---------------------------------------------------------------------------------------------------
 Version: 0.4.2
 Date: 2026-11-17
   Graphics:

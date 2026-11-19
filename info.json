@@ -1,10 +1,15 @@
 {
   "name": "WePlayRailgunEquipment",
-  "version": "0.4.2",
+  "version": "0.6.1",
   "title": "WePlay: Personal Railgun Equipment",
   "author": "afewvowels",
   "homepage": "https://github.com/afewvowels/WePlayRailgunEquipment",
-  "description": "A 4x4 armor railgun that fires an instant, armor-piercing slug through every enemy in a straight line, at a brutal cost in power.",
+  "description": "Personal laser defense equipment's big, mean sibling: a 4x4 armor railgun that fires a piercing slug through every enemy in a straight line, picking the line that hits the most. Extremely powerful, extremely power-hungry, and it eats endgame ammo.",
   "factorio_version": "2.1",
-  "dependencies": ["base >= 2.1", "? space-age"]
+  "dependencies": [
+    "base >= 2.1",
+    "? space-age",
+    "? space-exploration",
+    "? Krastorio2"
+  ]
 }
